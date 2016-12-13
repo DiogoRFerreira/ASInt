@@ -98,10 +98,9 @@ def adminoccupation():
 		ret_value.append({'id': m.room_id,'name':m.room_name})
 	return template(temp_admin_occupation_get, spaces = ret_value)
 
-#verificar o funcionamento deste
+
 @bottle.route('/html/admin/occupation/<room_id>')
 def admino_occupation_get(room_id):
-	#lista de utilizadores no room
 	ret_value = []
 	x = User.query(User.user_room==room_id).fetch()
 	for m in x:
@@ -191,7 +190,6 @@ def user(id):
 
 	return template(temp_user, id1=id, room_user=room_name)
 
-#Como aceder aos valores das querys? estou a usar fors para isso :/
 @bottle.route('/html/<id>/rooms')
 def userrooms(id):
 	ret_value = []
@@ -223,24 +221,121 @@ def userrooms(id, room_id):
 def userchecks_put(id):
 	rec_obj = json.dumps(request.json)
 	obj = json.loads(rec_obj)
-	#se for checkin realizar o checkout à anterior sala - por fazer! e alterar o valor do user em vez do colocar
-	n = Check(user_id = id,type = obj['check']['type'], room = obj['check']['room'])
-	key = n.put()
-	u = User(user_id = id, user_room = obj['check']['room'])
-	key1 = u.put()
+	if obj['check']['type'] == "IN":
+		room_user = User.query(User.user_id == id).fetch()
+		room_user_id = " "
+		for n in room_user:
+			room_user_id = n.user_room
+		if room_user_id == " ":
+			n = Check(user_id = id,type = obj['check']['type'], room = obj['check']['room'])
+			key = n.put()
+			u = User(user_id = id, user_room = obj['check']['room'])
+			key1 = u.put()
+		else:
+			n = Check(user_id = id,type = "OUT", room = room_user_id)
+			key = n.put()
+			m = Check(user_id = id,type = obj['check']['type'], room = obj['check']['room'])
+			key = m.put()
+			#editar user
+			room_user2 = User.query(User.user_id == id).get()
+			room_user2.user_room = obj['check']['room']
+			key = room_user2.put()
+	else:
+		n = Check(user_id = id,type = obj['check']['type'], room = obj['check']['room'])
+		key = n.put()
+		room_user2 = User.query(User.user_id == id).get()
+		room_user2.delete()
 	return " "
 
 
-#Recepcao a outros programas sem ser via brownser, ver User management enunciado do projecto
-#É enviar os jsons - para o cliente
-@bottle.route('/api/occupation/<room_id>')
-def book_id(id):
-	return
+#######ADMIN API########
+#Fenix
+@bottle.route('/api/admin/searchroom')
+def adminsearchfenix_api():
+	URI = 'https://fenix.tecnico.ulisboa.pt/api/fenix/v1/spaces/'
+	data = urllib2.urlopen(URI).read()
+	print data
+	d = json.loads(data)
+	return d
+@bottle.route('/api/admin/searchroom/<room_id>')
+def adminsearchfenix_api(room_id):
+	URI = 'https://fenix.tecnico.ulisboa.pt/api/fenix/v1/spaces/'+room_id
+	data = urllib2.urlopen(URI).read()
+	print data
+	d = json.loads(data)
+	return d
 
-#o put de cima serve para os dois ??
-@bottle.put('/api/addroom/<room_id>')
-def book_id(id):
-	return
+#Addroom
+@bottle.put('/api/admin/addroom')
+def adminput_api():
+	rec_obj = json.dumps(request.json)
+	obj = json.loads(rec_obj)
+	s = Space(room_id = obj["space"]["id"], room_name = obj["space"]["name"])
+	key = s.put()
+	return " "
+
+#Occupation
+@bottle.route('/api/admin/occupation')
+def adminoccupation():
+	ret_value = []
+	spaces = Space.query().fetch()
+	for m in spaces:
+		ret_value.append({'id': m.room_id,'name':m.room_name})
+	value = {}
+	value["occupation"] = ret_value
+	return value
+
+@bottle.route('/api/admin/occupation/<room_id>')
+def admino_occupation_get(room_id):
+	#lista de utilizadores no room
+	ret_value = []
+	x = User.query(User.user_room==room_id).fetch()
+	for m in x:
+		ret_value.append({'id': m.user_id})
+	#y = len(ret_value)
+	value = {}
+	value["room_users"] = ret_value
+	return value
+
+###USER API########
+@bottle.route('/api/<id>/rooms')
+def userrooms(id):
+	ret_value = []
+	spaces = Space.query().fetch()
+	for m in spaces:
+		ret_value.append({'id': m.room_id,'name':m.room_name})
+	value = {}
+	value["rooms"] = ret_value
+	return value
+
+@bottle.put('/api/<id>/check')
+def userchecks_put(id):
+	rec_obj = json.dumps(request.json)
+	obj = json.loads(rec_obj)
+	if obj['check']['type'] == "IN":
+		room_user = User.query(User.user_id == id).fetch()
+		room_user_id = " "
+		for n in room_user:
+			room_user_id = n.user_room
+		if room_user_id == " ":
+			n = Check(user_id = id,type = obj['check']['type'], room = obj['check']['room'])
+			key = n.put()
+			u = User(user_id = id, user_room = obj['check']['room'])
+			key1 = u.put()
+		else:
+			n = Check(user_id = id,type = "OUT", room = room_user_id)
+			key = n.put()
+			m = Check(user_id = id,type = obj['check']['type'], room = obj['check']['room'])
+			key = m.put()
+			room_user2 = User.query(User.user_id == id).get()
+			room_user2.user_room = obj['check']['room']
+			key = room_user2.put()
+	else:
+		n = Check(user_id = id,type = obj['check']['type'], room = obj['check']['room'])
+		key = n.put()
+		room_user2 = User.query(User.user_id == id).get()
+		room_user2.delete()
+	return " "
 
 #Define an handler for 404 errors.
 @bottle.error(404)
