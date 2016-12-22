@@ -497,6 +497,23 @@ def checks_api(id):
 	value["checks"] = ret_value
 	return value
 
+@bottle.post('/api/login')
+def do_login1():
+	username = request.forms.get('username')
+	user = User.query(User.user_username == username).fetch()
+	if not user:
+		biggestid = "0"
+		try:
+			biggestid = User.query().order(-User.user_id).get().user_id
+		except:
+			biggestid = "0"
+		id = long(biggestid) + 1
+		u = User(user_username = username, user_id = str(id), user_room = "None")
+		key1 = u.put()
+		return id
+	else:
+		return " "
+
 #Define an handler for 404 errors.
 @bottle.error(404)
 def error_404(error):
